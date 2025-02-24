@@ -1,6 +1,6 @@
 # Walker-LEO Satellite Constellation Simulator
 
-A Python-based simulation framework for modeling and analyzing Walker Star and Walker Delta satellite constellations in Low Earth Orbit (LEO).
+A simple Python-based simulation framework for modeling and analyzing Walker Star and Walker Delta based Low Earth Orbit (LEO) satellite constellation networks.
 
 ## Features
 
