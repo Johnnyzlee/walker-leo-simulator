@@ -9,7 +9,7 @@ A Python-based simulation framework for modeling and analyzing Walker Star and W
 - Configurable simulation parameters:
   - Number of orbits
   - Satellites per orbit
-  - Orbital radius
+  - Orbital altitude
   - Inclination (for Delta constellations)
   - Simulation duration
   - Time step resolution
@@ -36,12 +36,12 @@ python main.py
 ```
 
 Customize simulation parameters:
-```python
+```bash
 # Walker Star Constellation
-python main.py "Walker Star Constellation" 3600 1 num_orbits=36 num_sats_per_orbit=48 radius=6921
+python main.py "Walker Star Constellation" duration=3600 delta_t=1 num_orbits=36 num_sats_per_orbit=48 altitude=550
 
 # Walker Delta Constellation
-python main.py "Walker Delta Constellation" 3600 1 num_orbits=36 num_sats_per_orbit=48 radius=6921 inclination=53
+python main.py "Walker Delta Constellation" duration=3600 delta_t=1 num_orbits=36 num_sats_per_orbit=48 altitude=550 inclination=53.0
 ```
 
 ## Configuration
@@ -51,6 +51,7 @@ python main.py "Walker Delta Constellation" 3600 1 num_orbits=36 num_sats_per_or
 - `num_orbits`: Number of orbital planes
 - `num_sats_per_orbit`: Number of satellites per orbital plane
 - `radius`: Orbital radius (Earth radius + altitude in km)
+- `altitude`: Altitude of the orbits.
 - `inclination`: Orbital inclination (only for Delta constellations)
 
 ### Optional Parameters

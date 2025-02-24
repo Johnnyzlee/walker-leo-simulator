@@ -4,6 +4,10 @@
 File: network.py
 Author: Li ZENG @ HKUST ECE
 License: MIT License
+
+Description:
+This module defines the satellite network classes for Walker Star and Walker Delta constellations.
+It includes methods for building the network graph, updating satellite positions, and calculating shortest paths.
 """
 
 from constellation import StarConstellation, DeltaConstellation
@@ -12,20 +16,48 @@ import numpy as np
 import networkx as nx
 
 class SatNet(ABC):
+    """
+    Abstract base class for satellite networks.
+    Provides common methods and properties for satellite networks.
+    """
+    __LIGHT_SPEED = 299792.458  # Speed of light in km/s
+
+    @property
+    def LIGHT_SPEED(self):
+        """Speed of light in km/s (read-only)"""
+        return self.__LIGHT_SPEED
+    
     def __init__(self, constellation):
+        """
+        Initialize the satellite network.
+
+        Parameters:
+        - constellation: WalkerConstellation object representing the satellite constellation.
+        """
         self.constellation = constellation
-        self.time = 0  # initial time in seconds
+        self.time = 0  # Initial time in seconds
 
     @abstractmethod
     def _build_graph(self):
+        """Abstract method to build the network graph."""
         pass
     
     @abstractmethod
     def update_graph(self):
+        """Abstract method to update the network graph."""
         pass
     
     def get_distance(self, vertex_key1, vertex_key2):
-        # Note: distance of any satellite pair can be calculated, but it does not mean that there are direct links between them
+        """
+        Calculate the distance between two satellites.
+
+        Parameters:
+        - vertex_key1: Tuple (orbit_id, sat_id) of the first satellite.
+        - vertex_key2: Tuple (orbit_id, sat_id) of the second satellite.
+
+        Returns:
+        - Distance between the two satellites in km.
+        """
         try:
             sat1 = self.graph.nodes[vertex_key1]['sat']
             sat2 = self.graph.nodes[vertex_key2]['sat']
@@ -36,23 +68,113 @@ class SatNet(ABC):
         return np.linalg.norm(pos1 - pos2)
 
     def update_network(self, delta_t):
+        """
+        Update the network by advancing the simulation time and updating satellite positions.
+
+        Parameters:
+        - delta_t: Time increment in seconds.
+        """
         self.time += delta_t
         self.constellation.update_constellation(delta_t)
         self.update_graph()
         return
+    
+    def get_shortest_path(self, source, target, weight='weight'):
+        """
+        Find the shortest path between two satellites in the network.
 
+        Parameters:
+        - source: Tuple (orbit_id, sat_id) of the source satellite.
+        - target: Tuple (orbit_id, sat_id) of the target satellite.
+        - weight: Edge attribute to use as weight (default: 'weight').
+
+        Returns:
+        - path: List of vertex keys representing the shortest path.
+        - latency: End-to-end propagation latency in seconds.
+        """
+        try:
+            if source not in self.graph or target not in self.graph:
+                raise ValueError("Source or target node not found in the network")
+
+            # Find the shortest path using Dijkstra's algorithm
+            path = nx.shortest_path(self.graph, source, target, weight='weight') 
+            
+            # Calculate total distance along the path
+            total_distance = 0
+            for i in range(len(path)-1):
+                total_distance += self.graph[path[i]][path[i+1]]['weight']
+            
+            # Calculate latency (distance / speed of light)
+            latency = total_distance / self.LIGHT_SPEED
+
+            return path, latency
+
+        except nx.NetworkXNoPath:
+            raise ValueError(f"No path exists between satellites {source} and {target}")
+        except Exception as e:
+            raise Exception(f"Error finding shortest path: {str(e)}")
+        
+    def get_single_source_paths(self, source=(1, 1)):
+        """
+        Find shortest paths and latencies from a source satellite to all other satellites.
+
+        Parameters:
+        - source: Tuple (orbit_id, sat_id) of the source satellite.
+
+        Returns:
+        - paths: Dictionary {target: path} containing paths to all other satellites.
+        - latencies: Dictionary {target: latency} containing latencies to all other satellites.
+        """
+        try:
+            if source not in self.graph:
+                raise ValueError("Source node not found in the network")
+
+            # Get distances and paths to all nodes using single-source Dijkstra
+            distances, paths = nx.single_source_dijkstra(
+                self.graph, 
+                source, 
+                weight='weight'
+            )
+
+            # Convert distances to latencies
+            latencies = {
+                target: distance / self.LIGHT_SPEED 
+                for target, distance in distances.items()
+            }
+
+            return paths, latencies
+
+        except Exception as e:
+            raise Exception(f"Error computing single-source paths: {str(e)}")
+    
 
 class SatNetStar(SatNet):
+    """
+    Satellite network class for Walker Star Constellations.
+    """
     def __init__(self, constellation: StarConstellation, gamma_deg=80.0):
+        """
+        Initialize the Walker Star satellite network.
+
+        Parameters:
+        - constellation: StarConstellation object representing the satellite constellation.
+        - gamma_deg: Maximum latitude that supports the inter-plane links (default: 80.0 degrees).
+        """
         if constellation.type != "Walker Star Constellation":
             raise ValueError("SatNetStar requires a Walker Star Constellation")
         
         super().__init__(constellation)
-        self.gamma_deg = gamma_deg # maximum latitude that supports the inter-plane links
+        self.gamma_deg = gamma_deg  # Maximum latitude that supports the inter-plane links
         self.graph = self._build_graph()
         return
     
     def _build_graph(self):
+        """
+        Build the network graph for the Walker Star Constellation.
+
+        Returns:
+        - graph: NetworkX graph representing the satellite network.
+        """
         graph = nx.Graph()
         
         # Add nodes for each satellite in the constellation
@@ -63,7 +185,7 @@ class SatNetStar(SatNet):
         self.graph = graph
         
         # Add edges for laser inter-satellite links
-        # Intra-plance LISL: add edges between neighboring satellites in the same orbit
+        # Intra-plane LISL: add edges between neighboring satellites in the same orbit
         for orbit in self.constellation.orbits:
             for sat_id in range(1, orbit.num_sats + 1):
                 if self._check_isl_feasibility((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1)):
@@ -79,7 +201,16 @@ class SatNetStar(SatNet):
         return graph
     
     def _check_isl_feasibility(self, vertex_key1, vertex_key2):
-        # check if LISL are in polar regions and connects satellites
+        """
+        Check if a laser inter-satellite link (LISL) is feasible between two satellites.
+
+        Parameters:
+        - vertex_key1: Tuple (orbit_id, sat_id) of the first satellite.
+        - vertex_key2: Tuple (orbit_id, sat_id) of the second satellite.
+
+        Returns:
+        - True if the LISL is feasible, False otherwise.
+        """
         try:
             sat1 = self.graph.nodes[vertex_key1]['sat']
             sat2 = self.graph.nodes[vertex_key2]['sat']
@@ -115,7 +246,16 @@ class SatNetStar(SatNet):
     
     
 class SatNetDelta(SatNet):
+    """
+    Satellite network class for Walker Delta Constellations.
+    """
     def __init__(self, constellation: DeltaConstellation):
+        """
+        Initialize the Walker Delta satellite network.
+
+        Parameters:
+        - constellation: DeltaConstellation object representing the satellite constellation.
+        """
         if constellation.type != "Walker Delta Constellation":
             raise ValueError("SatNetDelta requires a Walker Delta Constellation")
         
@@ -124,10 +264,17 @@ class SatNetDelta(SatNet):
         return
     
     def update_graph(self):
+        """Update the network graph for the Walker Delta Constellation."""
         self.graph = self._build_graph()
         return
         
     def _build_graph(self):
+        """
+        Build the network graph for the Walker Delta Constellation.
+
+        Returns:
+        - graph: NetworkX graph representing the satellite network.
+        """
         graph = nx.Graph()
         # Add nodes for each satellite in the constellation
         for orbit in self.constellation.orbits:
@@ -137,7 +284,7 @@ class SatNetDelta(SatNet):
         self.graph = graph
         
         # Add edges for laser inter-satellite links
-        # Intra-plance LISL: add edges between neighboring satellites in the same orbit
+        # Intra-plane LISL: add edges between neighboring satellites in the same orbit
         for orbit in self.constellation.orbits:
             for sat_id in range(1, orbit.num_sats + 1):
                 if self._check_isl_feasibility((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1)):
@@ -154,7 +301,16 @@ class SatNetDelta(SatNet):
         return graph
     
     def _check_isl_feasibility(self, vertex_key1, vertex_key2):
-        # Check if the LISL is blocked by the Earth
+        """
+        Check if a laser inter-satellite link (LISL) is feasible between two satellites.
+
+        Parameters:
+        - vertex_key1: Tuple (orbit_id, sat_id) of the first satellite.
+        - vertex_key2: Tuple (orbit_id, sat_id) of the second satellite.
+
+        Returns:
+        - True if the LISL is feasible, False otherwise.
+        """
         try:
             sat1 = self.graph.nodes[vertex_key1]['sat']
             sat2 = self.graph.nodes[vertex_key2]['sat']

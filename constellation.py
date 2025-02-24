@@ -4,6 +4,10 @@
 File: constellation.py
 Author: Li ZENG @ HKUST ECE
 License: MIT License
+
+Description:
+This module defines the WalkerConstellation abstract base class and its derived classes for managing satellite constellations.
+It includes methods for initializing constellations, updating satellite positions, and calculating phase differences.
 """
 
 from abc import ABC, abstractmethod
@@ -11,46 +15,89 @@ import numpy as np
 from orbit import Orbit
 
 class WalkerConstellation(ABC):
+    """
+    Abstract base class representing a satellite constellation.
+    """
     def __init__(self, num_orbits, num_sats_per_orbit, radius):
-        self.time = 0
-        self.radius = radius
-        self.altitude = radius - 6371
-        self.num_orbits = num_orbits
-        self.num_sats_per_orbit = num_sats_per_orbit
-        return
-    
+        """
+        Initialize the constellation's properties.
+
+        Parameters:
+        - num_orbits: Number of orbital planes.
+        - num_sats_per_orbit: Number of satellites per orbital plane.
+        - radius: Radius of the orbits in km.
+        """
+        self.time = 0  # Simulation time in seconds
+        self.radius = radius  # Radius of the orbits in km
+        self.altitude = radius - 6371  # Altitude of the orbits in km (Earth's radius is 6371 km)
+        self.num_orbits = num_orbits  # Number of orbital planes
+        self.num_sats_per_orbit = num_sats_per_orbit  # Number of satellites per orbital plane
+
     def update_constellation(self, delta_t):
-        # Update the positions of all satellites in the constellation based on the time increment
+        """
+        Update the positions of all satellites in the constellation based on the time increment.
+
+        Parameters:
+        - delta_t: Time increment in seconds.
+        """
         self.time += delta_t
         for orbit in self.orbits:
             orbit.update_orbit(delta_t)
-        return
 
 
 class StarConstellation(WalkerConstellation):
-    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=6371 + 550):
+    """
+    Class representing a Walker Star Constellation.
+    """
+    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=6371 + 550.0):
+        """
+        Initialize the Walker Star Constellation.
+
+        Parameters:
+        - num_orbits: Number of orbital planes (default: 12).
+        - num_sats_per_orbit: Number of satellites per orbital plane (default: 30).
+        - radius: Radius of the orbits in km (default: 6371 + 550).
+        """
         super().__init__(num_orbits, num_sats_per_orbit, radius)
         self.type = "Walker Star Constellation"
-        self.inclination = np.radians(90)
-        self.phasediff = 0
-        self.orbits = [Orbit(self, orbit_id, self.radius, self.inclination, self.num_sats_per_orbit) for orbit_id in range(1, num_orbits + 1)]       
-        return
+        self.inclination = np.radians(90)  # Inclination of 90 degrees for polar orbits
+        self.phasediff = 0  # No phase difference for Walker Star Constellation
+        self.orbits = [Orbit(self, orbit_id, self.radius, self.inclination, self.num_sats_per_orbit) for orbit_id in range(1, num_orbits + 1)]
 
 
 class DeltaConstellation(WalkerConstellation):
+    """
+    Class representing a Walker Delta Constellation.
+    """
     def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=6371.0 + 550.0, inclination=53.0):
+        """
+        Initialize the Walker Delta Constellation.
+
+        Parameters:
+        - num_orbits: Number of orbital planes (default: 12).
+        - num_sats_per_orbit: Number of satellites per orbital plane (default: 30).
+        - radius: Radius of the orbits in km (default: 6371.0 + 550.0).
+        - inclination: Inclination of the orbits in degrees (default: 53.0).
+        """
         if inclination <= 0 or inclination >= 90:
-            raise ValueError("Inclination must be between 0 and 90 degrees.") 
-        
+            raise ValueError("Inclination must be between 0 and 90 degrees.")
+
         super().__init__(num_orbits, num_sats_per_orbit, radius)
-        self.type = "Walker Delta Constellation" 
-        self.inclination = np.radians(inclination)
-        self.phasediff = self.calculate_phasediff()
-        self.orbits = [Orbit(self, orbitd_id, self.radius, self.inclination, self.num_sats_per_orbit) for orbitd_id in range(1, num_orbits + 1)]
-        return
+        self.type = "Walker Delta Constellation"
+        self.inclination = np.radians(inclination)  # Convert inclination to radians
+        self.phasediff = self.calculate_phasediff()  # Calculate phase difference
+        self.orbits = [Orbit(self, orbit_id, self.radius, self.inclination, self.num_sats_per_orbit) for orbit_id in range(1, num_orbits + 1)]
+
         
     def calculate_phasediff(self):
-        # Calculate the phase difference between the ascending nodes of adjacent orbits, which helps find the neighboring satellites with inter-orbit inter-satellite links
+        """
+        Calculate the phase difference between the ascending nodes of adjacent orbits.
+
+        This helps in finding the neighboring satellites with inter-orbit inter-satellite links.
+
+        Returns:
+        - phasediff: Phase difference in radians.
+        """
         # Elements: (all in geodetic coordinates, i.e., latitude, longitude, height)
         #   - orbital plane 0: the equator
         #   - orbital plane 1: of which the ascending node is at (0, 0, radius)
