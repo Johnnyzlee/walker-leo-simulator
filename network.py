@@ -286,19 +286,23 @@ class SatNetDelta(SatNet):
         # Add edges for laser inter-satellite links
         # Intra-plane LISL: add edges between neighboring satellites in the same orbit
         for orbit in self.constellation.orbits:
+            if orbit.num_sats < 2:
+                continue # No intra-plane links for single-satellite orbits
             for sat_id in range(1, orbit.num_sats + 1):
                 if self._check_isl_feasibility((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1)):
                     distance = self.get_distance((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1))
-                    graph.add_edge((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1), weight=distance)
+                    self.graph.add_edge((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1), weight=distance)
                     
         # Inter-plane LISL: add edges between neighboring satellites in adjacent orbits
+        if self.constellation.num_orbits < 2:
+            return self.graph # No inter-plane links for single-orbit constellations
         for orbit_id in range(1, self.constellation.num_orbits + 1):
             for sat_id in range(1, self.constellation.num_sats_per_orbit + 1):
                 if self._check_isl_feasibility((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id)):
                     distance = self.get_distance((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id))
-                    graph.add_edge((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id), weight=distance)
-                
-        return graph
+                    self.graph.add_edge((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id), weight=distance)
+
+        return self.graph
     
     def _check_isl_feasibility(self, vertex_key1, vertex_key2):
         """
@@ -316,11 +320,12 @@ class SatNetDelta(SatNet):
             sat2 = self.graph.nodes[vertex_key2]['sat']
         except KeyError:
             raise ValueError("One or both vertex keys do not exist in the network")
-        
+
         mid_point_ecef = (sat1.position_ecef + sat2.position_ecef) / 2
         earth_radius = 6371
         alt_mid_point = np.linalg.norm(mid_point_ecef) - earth_radius
         if alt_mid_point < 0:
             # The LISL is blocked by the Earth
             return False
+        
         return True

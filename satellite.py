@@ -130,17 +130,15 @@ class Satellite:
         # Note that from ECEF to the orbital plane, need to:
         # - firstly rotate by the inclination angle around the x-axis (anti-clockwise)
         # - then rotate by the longitude of the ascending node around the z-axis (anti-clockwise)
-        # Hence, from the orbital plane to ECEF, need to:
-        # - firstly rotate by the longitude of the ascending node (omega) around the z-axis (clockwise, hence negative)
-        # - then rotate by the negative inclination angle around the x-axis (clockwise, hence negative)
         Rz_omega = np.array([
-            [np.cos(-self.right_ascension), -np.sin(-self.right_ascension), 0],
-            [np.sin(-self.right_ascension), np.cos(-self.right_ascension), 0],
+            [np.cos(self.right_ascension), -np.sin(self.right_ascension), 0],
+            [np.sin(self.right_ascension), np.cos(self.right_ascension), 0],
             [0, 0, 1]
         ])
         Rx_phi = np.array([
             [1, 0, 0],
-            [0, np.cos(-self.inclination), -np.sin(-self.inclination)],
-            [0, np.sin(-self.inclination), np.cos(-self.inclination)]
+            [0, np.cos(self.inclination), -np.sin(self.inclination)],
+            [0, np.sin(self.inclination), np.cos(self.inclination)]
         ])
-        return np.dot(Rx_phi, Rz_omega)
+        return np.dot(Rz_omega, Rx_phi)
+        
