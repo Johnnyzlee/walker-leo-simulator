@@ -13,6 +13,7 @@ It includes methods for computing satellite positions and links at a given times
 import plotly.graph_objects as go
 import numpy as np
 from network import SatNetStar, SatNetDelta
+from IPython.display import display, HTML
 
 
 class Visualization:
@@ -206,18 +207,131 @@ class Visualization:
 
         fig.write_html(output_file)
         print(f'Visualization saved to {output_file}')
+
+    def animate(self, duration, delta_t=1, output_file='visualization/network_animation.html'):
+        """
+        Create an HTML animation of the satellite network.
+
+        Parameters:
+        - duration: Total duration of the animation in seconds.
+        - delta_t: Time step for each frame in seconds.
+        - output_file: Output HTML file for the animation.
+        """
+        frames = []
+        for t in range(0, duration + delta_t, delta_t):
+            positions, intra_links, inter_links = self.compute_positions_and_links(t)
+            frame_data = []
+
+            # Add satellite nodes
+            for orbit_id, sats in positions.items():
+                x, y, z = [], [], []
+                for sat_id, pos in sats.items():
+                    x.append(pos[0])
+                    y.append(pos[1])
+                    z.append(pos[2])
+                frame_data.append(go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='markers',
+                    marker=dict(size=4),
+                    name=f'Orbit {orbit_id}'
+                ))
+
+            # Add intra-orbit links (edges) with weights
+            for link in intra_links:
+                sat1_pos = positions[link[0][0]][link[0][1]]
+                sat2_pos = positions[link[1][0]][link[1][1]]
+                weight = link[2]
+                frame_data.append(go.Scatter3d(
+                    x=[sat1_pos[0], sat2_pos[0]],
+                    y=[sat1_pos[1], sat2_pos[1]],
+                    z=[sat1_pos[2], sat2_pos[2]],
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='solid'),
+                    name=f'Intra-Link {link[0]}-{link[1]} ({weight:.2f} km)'
+                ))
+
+            # Add inter-orbit links (edges) with weights
+            for link in inter_links:
+                sat1_pos = positions[link[0][0]][link[0][1]]
+                sat2_pos = positions[link[1][0]][link[1][1]]
+                weight = link[2]
+                frame_data.append(go.Scatter3d(
+                    x=[sat1_pos[0], sat2_pos[0]],
+                    y=[sat1_pos[1], sat2_pos[1]],
+                    z=[sat1_pos[2], sat2_pos[2]],
+                    mode='lines',
+                    line=dict(color='grey', width=2, dash='solid'),
+                    name=f'Inter-Link {link[0]}-{link[1]} ({weight:.2f} km)'
+                ))
+
+            frames.append(go.Frame(data=frame_data, name=str(t)))
+
+        fig = go.Figure(
+            data=frames[0].data,
+            layout=go.Layout(
+                updatemenus=[{
+                    'buttons': [
+                        {
+                            'args': [None, {'frame': {'duration': 500, 'redraw': True}, 'fromcurrent': True}],
+                            'label': 'Play',
+                            'method': 'animate'
+                        },
+                        {
+                            'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate', 'transition': {'duration': 0}}],
+                            'label': 'Pause',
+                            'method': 'animate'
+                        }
+                    ],
+                    'direction': 'left',
+                    'pad': {'r': 10, 't': 87},
+                    'showactive': False,
+                    'type': 'buttons',
+                    'x': 0.1,
+                    'xanchor': 'right',
+                    'y': 0,
+                    'yanchor': 'top'
+                }],
+                sliders=[{
+                    'active': 0,
+                    'yanchor': 'top',
+                    'xanchor': 'left',
+                    'currentvalue': {
+                        'font': {'size': 20},
+                        'prefix': 'Time:',
+                        'visible': True,
+                        'xanchor': 'right'
+                    },
+                    'transition': {'duration': 300, 'easing': 'cubic-in-out'},
+                    'pad': {'b': 10, 't': 50},
+                    'len': 0.9,
+                    'x': 0.1,
+                    'y': 0,
+                    'steps': [{
+                        'args': [[str(t)], {'frame': {'duration': 300, 'redraw': True}, 'mode': 'immediate', 'transition': {'duration': 300}}],
+                        'label': str(t),
+                        'method': 'animate'
+                    } for t in range(0, duration + delta_t, delta_t)]
+                }]
+            ),
+            frames=frames
+        )
+
+        fig.write_html(output_file)
+        display(HTML(output_file))
+        print(f'Animation saved to {output_file}')
         
 if __name__ == "__main__":
     from constellation import DeltaConstellation
     from network import SatNetDelta
     # Example usage for Walker Delta Constellation
-    constellation = DeltaConstellation(num_orbits=30, num_sats_per_orbit=48, radius=6371 + 550, inclination=53)
+    constellation = DeltaConstellation(num_orbits=16, num_sats_per_orbit=24, radius=6371 + 550, inclination=53)
     network = SatNetDelta(constellation)
     viz = Visualization(network)
-    # viz.visualize(timestamp=12)
 
 
     import datetime
     current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    viz.visualize(timestamp=12, output_file=f'visualization/network_visualization_{current_time}.html')
+    # viz.visualize(timestamp=12)
+    # viz.visualize(timestamp=12, output_file=f'visualization/network_visualization_{current_time}.html')
+    viz.animate(duration=600, delta_t=20, output_file=f'visualization/network_animation_{current_time}.html')
     
