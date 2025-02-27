@@ -14,6 +14,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from orbit import Orbit
 
+EARTH_RADIUS = 6371 # Define Earth's radius as a constant
+
 class WalkerConstellation(ABC):
     """
     Abstract base class representing a satellite constellation.
@@ -29,7 +31,7 @@ class WalkerConstellation(ABC):
         """
         self.time = 0  # Simulation time in seconds
         self.radius = radius  # Radius of the orbits in km
-        self.altitude = radius - 6371  # Altitude of the orbits in km (Earth's radius is 6371 km)
+        self.altitude = radius - EARTH_RADIUS  # Altitude of the orbits in km (Earth's radius is EART_RADIUS = 6371 km)
         self.num_orbits = num_orbits  # Number of orbital planes
         self.num_sats_per_orbit = num_sats_per_orbit  # Number of satellites per orbital plane
 
@@ -49,14 +51,14 @@ class StarConstellation(WalkerConstellation):
     """
     Class representing a Walker Star Constellation.
     """
-    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=6371 + 550.0):
+    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=EARTH_RADIUS + 550.0):
         """
         Initialize the Walker Star Constellation.
 
         Parameters:
         - num_orbits: Number of orbital planes (default: 12).
         - num_sats_per_orbit: Number of satellites per orbital plane (default: 30).
-        - radius: Radius of the orbits in km (default: 6371 + 550).
+        - radius: Radius of the orbits in km (default: EARTH_RADIUS + 550).
         """
         super().__init__(num_orbits, num_sats_per_orbit, radius)
         self.type = "Walker Star Constellation"
@@ -69,14 +71,14 @@ class DeltaConstellation(WalkerConstellation):
     """
     Class representing a Walker Delta Constellation.
     """
-    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=6371.0 + 550.0, inclination=53.0):
+    def __init__(self, num_orbits=12, num_sats_per_orbit=30, radius=EARTH_RADIUS + 550.0, inclination=53.0):
         """
         Initialize the Walker Delta Constellation.
 
         Parameters:
         - num_orbits: Number of orbital planes (default: 12).
         - num_sats_per_orbit: Number of satellites per orbital plane (default: 30).
-        - radius: Radius of the orbits in km (default: 6371.0 + 550.0).
+        - radius: Radius of the orbits in km (default: EART_RADIUS + 550.0).
         - inclination: Inclination of the orbits in degrees (default: 53.0).
         """
         if inclination <= 0 or inclination >= 90:

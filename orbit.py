@@ -13,6 +13,8 @@ It includes methods for initializing orbits, retrieving orbit information, and u
 import numpy as np
 from satellite import Satellite
 
+EARTH_RADIUS = 6371  # Define Earth's radius as a constant
+
 class Orbit:
     """
     Class representing an orbit in a satellite constellation.
@@ -51,7 +53,7 @@ class Orbit:
         return {
             'id': self.id,
             'radius': self.radius,
-            'altitude': self.radius - 6371,
+            'altitude': self.radius - EARTH_RADIUS,
             'inclination': np.degrees(self.inclination),
             'num_sats': self.num_sats,
             'right_ascension': np.degrees(self.right_ascension)

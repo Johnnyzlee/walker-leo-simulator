@@ -12,6 +12,8 @@ It includes methods for initializing satellite properties, calculating positions
 
 import numpy as np
 
+EARTH_RADIUS = 6371  # Define Earth's radius as a constant
+
 class Satellite:
     """
     Class representing a satellite in an orbit.
@@ -47,7 +49,7 @@ class Satellite:
         return {
             'id': self.id,  # Satellite ID
             'orbit_id': self.orbit.id,  # Orbit ID
-            'altitude': self.radius - 6371,  # Altitude in km
+            'altitude': self.radius - EARTH_RADIUS,  # Altitude in km
             'inclination (in degree)': np.degrees(self.inclination),  # Inclination in degrees
             'right_ascension (in degree)': np.degrees(self.right_ascension),  # Longitude of the ascending node in degrees
             'angular velocity (in rad/s)': self.angular_velocity,  # Angular velocity in rad/s
@@ -92,7 +94,7 @@ class Satellite:
         if y < 0:
             lon -= np.pi  # Adjust the range of longitude to be (-pi, pi]
         lat = np.arctan2(z, hyp)
-        alt = hyp - 6371  # Earth's radius is 6371 km
+        alt = hyp - EARTH_RADIUS  # Earth's radius is 6371 km
         lon = np.degrees(lon)
         lat = np.degrees(lat)
         return np.array([lat, lon, alt])

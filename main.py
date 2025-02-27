@@ -10,6 +10,8 @@ from constellation import StarConstellation, DeltaConstellation
 from network import SatNetStar, SatNetDelta
 import time
 
+EARTH_RADIUS = 6371  # Define Earth's radius as a constant
+
 def main(constellation_type, *args, **kwargs):
     """
     Initialize and run the constellation network.
@@ -48,14 +50,14 @@ def main(constellation_type, *args, **kwargs):
         for param in required_params_star:
             if param not in kwargs:
                 raise ValueError(f"Missing required parameter for Star Constellation: {param}")
-        kwargs['radius'] = 6371 + kwargs.pop('altitude')
+        kwargs['radius'] = EARTH_RADIUS + kwargs.pop('altitude')
         constellation = StarConstellation(*args, **kwargs)
         network = SatNetStar(constellation)
     elif constellation_type == "Walker Delta Constellation":
         for param in required_params_delta:
             if param not in kwargs:
                 raise ValueError(f"Missing required parameter for Delta Constellation: {param}")
-        kwargs['radius'] = 6371 + kwargs.pop('altitude')
+        kwargs['radius'] = EARTH_RADIUS + kwargs.pop('altitude')
         constellation = DeltaConstellation(*args, **kwargs)
         network = SatNetDelta(constellation)
     else:

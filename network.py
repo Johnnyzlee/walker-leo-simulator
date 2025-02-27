@@ -15,6 +15,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import networkx as nx
 
+EARTH_RADIUS = 6371  # Define Earth's radius as a constant
+
 class SatNet(ABC):
     """
     Abstract base class for satellite networks.
@@ -184,20 +186,30 @@ class SatNetStar(SatNet):
                 graph.add_node((orbit.id, sat.id), sat=sat)
         self.graph = graph
         
+        
         # Add edges for laser inter-satellite links
         # Intra-plane LISL: add edges between neighboring satellites in the same orbit
         for orbit in self.constellation.orbits:
+            if orbit.num_sats < 2:
+                continue # No intra-plane links for single-satellite orbits
             for sat_id in range(1, orbit.num_sats + 1):
-                if self._check_isl_feasibility((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1)):
-                    distance = self.get_distance((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1))
-                    graph.add_edge((orbit.id, sat_id), (orbit.id, (sat_id % orbit.num_sats) + 1), weight=distance)
+                sat1 = (orbit.id, sat_id)
+                sat2 = (orbit.id, (sat_id % orbit.num_sats) + 1)
+                if self._check_isl_feasibility(sat1, sat2):
+                    distance = self.get_distance(sat1, sat2)
+                    self.graph.add_edge(sat1, sat2, weight=distance)
                     
         # Inter-plane LISL: add edges between neighboring satellites in adjacent orbits
+        if self.constellation.num_orbits < 2:
+            return self.graph # No inter-plane links for single-orbit constellations
         for orbit_id in range(1, self.constellation.num_orbits + 1):
             for sat_id in range(1, self.constellation.num_sats_per_orbit + 1):
-                if self._check_isl_feasibility((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id)):
-                    distance = self.get_distance((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id))
-                    graph.add_edge((orbit_id, sat_id), ((orbit_id % self.constellation.num_orbits) + 1, sat_id), weight=distance)
+                sat1 = (orbit_id, sat_id)
+                sat2 = ((orbit_id % self.constellation.num_orbits) + 1, sat_id)
+                if self._check_isl_feasibility(sat1, sat2):
+                    distance = self.get_distance(sat1, sat2)
+                    self.graph.add_edge(sat1, sat2, weight=distance)
+
         return graph
     
     def _check_isl_feasibility(self, vertex_key1, vertex_key2):
@@ -221,7 +233,7 @@ class SatNetStar(SatNet):
         
         # Check if the LISL is blocked by the Earth
         mid_point_ecef = (sat1.position_ecef + sat2.position_ecef) / 2
-        earth_radius = 6371
+        earth_radius = EARTH_RADIUS
         alt_mid_point = np.linalg.norm(mid_point_ecef) - earth_radius
         if alt_mid_point < 0:
             # The LISL is blocked by the Earth
@@ -299,14 +311,16 @@ class SatNetDelta(SatNet):
         if self.constellation.num_orbits < 2:
             return self.graph # No inter-plane links for single-orbit constellations
         for orbit_id in range(1, self.constellation.num_orbits + 1):
-            if orbit_id != self.constellation.num_orbits: # For all orbits except the last one
+            if orbit_id != self.constellation.num_orbits: 
+                # For all orbits except the last one
                 for sat_id in range(1, self.constellation.num_sats_per_orbit + 1):
                     sat1 = (orbit_id, sat_id)
                     sat2 = ((orbit_id % self.constellation.num_orbits) + 1, sat_id)
                     if self._check_isl_feasibility(sat1, sat2):
                         distance = self.get_distance(sat1, sat2)
                         self.graph.add_edge(sat1, sat2, weight=distance)
-            else: # For the last orbit, add links to the first orbit, the offset is calculated based on the phasediff
+            else: 
+                # For the last orbit, add links to the first orbit, the offset is calculated based on the phasediff
                 for sat_id in range(1, self.constellation.num_sats_per_orbit + 1):
                     sat_id_offset = (self.constellation.num_orbits * np.degrees(self.constellation.phasediff)) / (360 / self.constellation.num_sats_per_orbit)
                     sat_id_offset = round(sat_id_offset) # Round to the nearest integer
@@ -336,7 +350,7 @@ class SatNetDelta(SatNet):
             raise ValueError("One or both vertex keys do not exist in the network")
 
         mid_point_ecef = (sat1.position_ecef + sat2.position_ecef) / 2
-        earth_radius = 6371
+        earth_radius = EARTH_RADIUS
         alt_mid_point = np.linalg.norm(mid_point_ecef) - earth_radius
         if alt_mid_point < 0:
             # The LISL is blocked by the Earth
